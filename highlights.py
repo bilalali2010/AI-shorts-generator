@@ -1,25 +1,37 @@
-import subprocess, sys
+import subprocess
 import tempfile
-import json
+import shlex
+import os
+import whisper
 
-# Ensure Whisper is installed (works on Streamlit Cloud)
-try:
-    import whisper
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "openai-whisper"])
-    import whisper
-
-# Load Whisper model ('base' is smaller and faster for Streamlit Cloud)
+# Load Whisper model (base is faster & works on free tier)
 model = whisper.load_model("base")
 
+def video_to_audio(video_path: str) -> str:
+    """
+    Converts video to WAV audio for Whisper transcription
+    """
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+    tmp.close()
+    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -ar 16000 -ac 1 -vn {shlex.quote(tmp.name)}"
+    subprocess.run(cmd, shell=True, check=True)
+    return tmp.name
+
 def find_best_highlight(video_path: str, target_seconds: int = 45):
-    # Transcribe video with Whisper (timestamps enabled)
-    result = model.transcribe(video_path, word_timestamps=True)
+    # Convert video to audio for Whisper
+    audio_path = video_to_audio(video_path)
+
+    # Transcribe audio with Whisper
+    result = model.transcribe(audio_path, word_timestamps=True)
     segments = result.get('segments', [])
+
+    # Remove temporary audio file
+    os.remove(audio_path)
 
     if not segments:
         # fallback: center clip
         probe = subprocess.run(['ffprobe','-v','quiet','-print_format','json','-show_format',video_path], capture_output=True)
+        import json
         info = json.loads(probe.stdout)
         dur = float(info['format']['duration'])
         start = max(0, dur/2 - target_seconds/2)
