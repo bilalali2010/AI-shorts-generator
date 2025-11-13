@@ -1,15 +1,22 @@
-import whisper
+import subprocess, sys
 import tempfile
-import subprocess, shlex
-from pathlib import Path
 import json
 
-model = whisper.load_model("small")  # or "base" for faster processing
+# Ensure Whisper is installed (works on Streamlit Cloud)
+try:
+    import whisper
+except ImportError:
+    subprocess.run([sys.executable, "-m", "pip", "install", "openai-whisper"])
+    import whisper
+
+# Load Whisper model ('base' is smaller and faster for Streamlit Cloud)
+model = whisper.load_model("base")
 
 def find_best_highlight(video_path: str, target_seconds: int = 45):
-    # Transcribe with timestamps
+    # Transcribe video with Whisper (timestamps enabled)
     result = model.transcribe(video_path, word_timestamps=True)
     segments = result.get('segments', [])
+
     if not segments:
         # fallback: center clip
         probe = subprocess.run(['ffprobe','-v','quiet','-print_format','json','-show_format',video_path], capture_output=True)
@@ -18,7 +25,7 @@ def find_best_highlight(video_path: str, target_seconds: int = 45):
         start = max(0, dur/2 - target_seconds/2)
         return float(start), float(start + target_seconds)
 
-    # sliding window heuristic to find highest word density
+    # Sliding window heuristic to find highest word density
     best_score = -1
     best_start = 0
     total_duration = segments[-1]['end']
