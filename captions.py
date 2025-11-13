@@ -1,9 +1,16 @@
-import whisper
+import subprocess, sys
 from pathlib import Path
 import tempfile
-import subprocess, shlex
 
-model = whisper.load_model("small")
+# Ensure Whisper is installed
+try:
+    import whisper
+except ImportError:
+    subprocess.run([sys.executable, "-m", "pip", "install", "openai-whisper"])
+    import whisper
+
+# Load Whisper model ('base' recommended for Streamlit Cloud)
+model = whisper.load_model("base")
 
 ASS_TEMPLATE = """
 [Script Info]
@@ -38,6 +45,6 @@ def generate_ass_captions(video_path: str, style: str = 'TikTok'):
 
 def burn_ass_subtitles(video_path: str, ass_path: str, output_dir: Path):
     outp = output_dir / (Path(video_path).stem + "_final.mp4")
-    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -vf ass={shlex.quote(ass_path)} -c:v libx264 -c:a aac -movflags +faststart {shlex.quote(str(outp))}"
-    subprocess.run(shlex.split(cmd), check=True)
+    cmd = f"ffmpeg -y -i {subprocess.list2cmdline([video_path])} -vf ass={subprocess.list2cmdline([ass_path])} -c:v libx264 -c:a aac -movflags +faststart {subprocess.list2cmdline([str(outp)])}"
+    subprocess.run(cmd, shell=True, check=True)
     return str(outp)
