@@ -22,8 +22,6 @@ with col2:
 
 output_dir = Path('outputs')
 output_dir.mkdir(exist_ok=True)
-ensure_ffmpeg()
-
 if generate_btn:
     with st.spinner('Processing — this can take a few minutes'):
         if url:
