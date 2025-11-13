@@ -4,6 +4,7 @@ import shlex
 import os
 from pathlib import Path
 import whisper
+import imageio_ffmpeg as ffmpeg
 
 # Load Whisper model
 model = whisper.load_model("base")
@@ -24,11 +25,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 def video_to_audio(video_path: str) -> str:
     """
-    Converts video to WAV for Whisper transcription
+    Converts video to WAV for Whisper transcription using imageio-ffmpeg binary
     """
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
     tmp.close()
-    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -ar 16000 -ac 1 -vn {shlex.quote(tmp.name)}"
+    ffmpeg_bin = ffmpeg.get_ffmpeg_exe()
+    cmd = f'{ffmpeg_bin} -y -i {shlex.quote(video_path)} -ar 16000 -ac 1 -vn {shlex.quote(tmp.name)}'
     subprocess.run(cmd, shell=True, check=True)
     return tmp.name
 
@@ -58,6 +60,7 @@ def generate_ass_captions(video_path: str, style: str = 'TikTok'):
 
 def burn_ass_subtitles(video_path: str, ass_path: str, output_dir: Path):
     outp = output_dir / (Path(video_path).stem + "_final.mp4")
-    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -vf ass={shlex.quote(ass_path)} -c:v libx264 -c:a aac -movflags +faststart {shlex.quote(str(outp))}"
+    ffmpeg_bin = ffmpeg.get_ffmpeg_exe()
+    cmd = f'{ffmpeg_bin} -y -i {shlex.quote(video_path)} -vf ass={shlex.quote(ass_path)} -c:v libx264 -c:a aac -movflags +faststart {shlex.quote(str(outp))}'
     subprocess.run(cmd, shell=True, check=True)
     return str(outp)
