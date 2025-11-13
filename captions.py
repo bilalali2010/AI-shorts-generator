@@ -1,15 +1,11 @@
-import subprocess, sys
-from pathlib import Path
+import subprocess
 import tempfile
+import shlex
+import os
+from pathlib import Path
+import whisper
 
-# Ensure Whisper is installed
-try:
-    import whisper
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "openai-whisper"])
-    import whisper
-
-# Load Whisper model ('base' recommended for Streamlit Cloud)
+# Load Whisper model
 model = whisper.load_model("base")
 
 ASS_TEMPLATE = """
@@ -26,9 +22,26 @@ Style: TikTok,Impact,72,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
+def video_to_audio(video_path: str) -> str:
+    """
+    Converts video to WAV for Whisper transcription
+    """
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+    tmp.close()
+    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -ar 16000 -ac 1 -vn {shlex.quote(tmp.name)}"
+    subprocess.run(cmd, shell=True, check=True)
+    return tmp.name
+
 def generate_ass_captions(video_path: str, style: str = 'TikTok'):
-    result = model.transcribe(video_path, word_timestamps=True)
+    # Convert video to audio
+    audio_path = video_to_audio(video_path)
+
+    # Transcribe audio with Whisper
+    result = model.transcribe(audio_path, word_timestamps=True)
     segments = result.get('segments', [])
+
+    # Remove temporary audio file
+    os.remove(audio_path)
 
     ass_path = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".ass").name)
     with open(ass_path, "w", encoding="utf-8") as f:
@@ -45,6 +58,6 @@ def generate_ass_captions(video_path: str, style: str = 'TikTok'):
 
 def burn_ass_subtitles(video_path: str, ass_path: str, output_dir: Path):
     outp = output_dir / (Path(video_path).stem + "_final.mp4")
-    cmd = f"ffmpeg -y -i {subprocess.list2cmdline([video_path])} -vf ass={subprocess.list2cmdline([ass_path])} -c:v libx264 -c:a aac -movflags +faststart {subprocess.list2cmdline([str(outp)])}"
+    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -vf ass={shlex.quote(ass_path)} -c:v libx264 -c:a aac -movflags +faststart {shlex.quote(str(outp))}"
     subprocess.run(cmd, shell=True, check=True)
     return str(outp)
