@@ -5,4 +5,4 @@ numpy
 opencv-python-headless
 pydub
 moviepy
-whisper
+openai-whisper
