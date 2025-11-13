@@ -3,17 +3,19 @@ import tempfile
 import shlex
 import os
 import whisper
+import imageio_ffmpeg as ffmpeg
 
 # Load Whisper model (base is faster & works on free tier)
 model = whisper.load_model("base")
 
 def video_to_audio(video_path: str) -> str:
     """
-    Converts video to WAV audio for Whisper transcription
+    Converts video to WAV audio for Whisper transcription using imageio-ffmpeg binary
     """
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
     tmp.close()
-    cmd = f"ffmpeg -y -i {shlex.quote(video_path)} -ar 16000 -ac 1 -vn {shlex.quote(tmp.name)}"
+    ffmpeg_bin = ffmpeg.get_ffmpeg_exe()
+    cmd = f'{ffmpeg_bin} -y -i {shlex.quote(video_path)} -ar 16000 -ac 1 -vn {shlex.quote(tmp.name)}'
     subprocess.run(cmd, shell=True, check=True)
     return tmp.name
 
