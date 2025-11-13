@@ -1,0 +1,8 @@
+streamlit
+yt-dlp
+ffmpeg-python
+numpy
+opencv-python-headless
+pydub
+moviepy
+whisper
