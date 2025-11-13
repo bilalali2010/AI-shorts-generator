@@ -6,3 +6,5 @@ opencv-python-headless
 pydub
 moviepy
 openai-whisper
+imageio-ffmpeg
+
